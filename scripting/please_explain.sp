@@ -1,9 +1,14 @@
 //todo list
-//FEATURE: give everyone a turn at being the explainer
 //FEATURE: some sort of scoring system
+//FEATURE: give everyone a turn at being the explainer (whoever has the highest score or lowest number of turns being the explainer?)
 
 //FIX: if word list file is not openable
 //FIX: if word list file contains zero words
+
+//CLEAN: confusion caused by name 'isGameGoing' (rename to isEnoughPlayers or create a separate function?)
+//CLEAN: remove commented debug prints/functions
+//CLEAN: newExplainer() yo
+//CLEAN: get rid of this todo list and add introductory comments
 
 //To debug, change "isTwoPlaying" to "isOnePlaying" and allow explainer to guess in "OnClientSayCommand_Post"
 
@@ -26,10 +31,10 @@ new Handle:gameTimer;
 
 public Plugin:myinfo =
 {
-  name = "please explain",
+  name = "Word Guess",
   author = "",
-  description = "An 'articulate'-like minigame",
-  version = "1.6",
+  description = "An 'Articulate'-like minigame",
+  version = "1.7",
   url = ""
 };
 
@@ -54,9 +59,9 @@ public OnPluginStart()
   RegConsoleCmd("sm_newword", Cmd_NewWord, "Skip the current word and change it to a new random word");
   RegConsoleCmd("sm_word", Cmd_Word, "Show the current word if you are the explainer");
   RegConsoleCmd("sm_pass", Cmd_Pass, "Pass if you do not want to be the explainer");
-  RegConsoleCmd("sm_plzx", Cmd_Playing, "Toggle if you are playing plzx");
-  RegConsoleCmd("sm_plzhalp", Cmd_Halp, "Print game instructions");
-  RegConsoleCmd("sm_plzwho", Cmd_Who, "Print game instructions");
+  RegConsoleCmd("sm_playguess", Cmd_Playing, "Toggle if you are playing Word Guess");
+  RegConsoleCmd("sm_guesshelp", Cmd_Help, "Print game instructions");
+  RegConsoleCmd("sm_guesswho", Cmd_Who, "Show who are playing and who is the explainer");
 }
 
 
@@ -73,7 +78,7 @@ public OnClientDisconnect_Post(client)
 {
   new bool:wasGameGoing = isGameGoing();
   isPlaying[client] = false;
-  // Stop the game if there aren't enough players since he left
+  // Stop the game if there aren't enough players left
   if (wasGameGoing!=isGameGoing())
   {
     stopGame();
@@ -106,12 +111,6 @@ public OnClientSayCommand_Post(client, const String:command[], const String:sArg
       PrintToPlayingClients(message);
       NextRandomWord();
     }
-    /*
-    else
-    {
-      PrintToChat(client, "Wrong");
-    }
-    */
   }
 }
 
@@ -139,7 +138,7 @@ public Action:Cmd_Playing(client, args)
   decl String:message[256];
   if (isPlaying[client])
   {
-    Format(message, sizeof(message),"You are now playing plzx. Type {green}!plzhalp {default}for instructions");
+    Format(message, sizeof(message),"You are now playing Word Guess. Type {green}!guesshelp {default}for instructions");
     CPrintToChat(client, message);
     if (wasGameGoing == isGameGoing()) //If the player didn't cause a start or stop of the game
     {
@@ -160,14 +159,14 @@ public Action:Cmd_Playing(client, args)
   }
   else
   {
-    Format(message, sizeof(message),"You are no longer playing plzx");
+    Format(message, sizeof(message),"You are no longer playing Word Guess");
     PrintToChat(client, message);
   }
   return Plugin_Handled;
 }
 
 //Command to show help
-public Action:Cmd_Halp(client, args)
+public Action:Cmd_Help(client, args)
 {
   if (args == 1)
   {
@@ -176,17 +175,17 @@ public Action:Cmd_Halp(client, args)
     if (StrEqual(arg, "more", false))
     {
       CPrintToChat(client, "As the explainer, type {green}!word {default}to show the current word, {green}!newword {default}to receive a new random word, and {green}!pass {default}to pass the role of explainer to someone else.");
-      CPrintToChat(client, "Type {green}!plzx {default}to toggle whether you are playing. Type {green}!plzwho {default}to show who is the explainer and who else is playing.");
+      CPrintToChat(client, "Type {green}!playguess {default}to toggle whether you are playing. Type {green}!guesswho {default}to show who is the explainer and who else is playing.");
     }
     else
     {
-      CPrintToChat(client, "Type {green}!plzhalp {default}for instructions and {green}!plzhalp more {default}for some useful commands.");
+      CPrintToChat(client, "Type {green}!guesshelp {default}for instructions and {green}!guesshelp more {default}for some useful commands.");
     }
   }
   else
   {
     PrintToChat(client, "Instructions: Each round one player is chosen as the explainer. Other players must guess (by typing in chat) as many randomly chosen words as they can in %i seconds.", ROUND_TIME);
-    CPrintToChat(client, "The explainer must give hints to the words (in mumble), without saying the words. Type {green}!plzhalp more {default}for some useful commands.");
+    CPrintToChat(client, "The explainer must give hints to the words (in voice chat), without saying the words. Type {green}!guesshelp more {default}for some useful commands.");
   }
   return Plugin_Handled;
 }
@@ -196,7 +195,7 @@ public Action:Cmd_Who(client, args)
 {
   if (isGameGoing())
   {
-    PrintToChat(client, "List of players (articlator shown in orange):");
+    PrintToChat(client, "List of players (explainer shown in orange):");
     for (new player = 0; player <= MAXPLAYERS; player++)
     {
       if (isPlaying[player])
@@ -492,6 +491,9 @@ public Action:timeNextSecond(Handle:timer)
 
 startRound()
 {
+  decl String:message[256];
+  Format(message, sizeof(message),"New round has begun!");
+  PrintToPlayingClients(message);
   newExplainer();
   NextRandomWord();
   secondsLeft = ROUND_TIME; //Reset the timer (to 60 by default)
@@ -501,7 +503,7 @@ startRound()
 startGame()
 {
   decl String:message[256];
-  Format(message, sizeof(message),"Game is starting");
+  Format(message, sizeof(message),"Game is starting...");
   PrintToPlayingClients(message);
   startRound();
 }
@@ -510,7 +512,7 @@ stopGame()
 {
   KillTimer(gameTimer);
   decl String:message[256];
-  Format(message, sizeof(message), "{lightgreen}Game over");
+  Format(message, sizeof(message), "{lightgreen}Game Over!");
   PrintToPlayingClients(message);
   //Reset some of the global variables
   currentWord = "";
