@@ -2,12 +2,9 @@
 //FEATURE: some sort of scoring system
 //FEATURE: give everyone a turn at being the explainer (whoever has the highest score or lowest number of turns being the explainer?)
 
-//FIX: if word list file is not openable
-//FIX: if word list file contains zero words
-
 //CLEAN: confusion caused by name 'isGameGoing' (rename to isEnoughPlayers or create a separate function?)
 //CLEAN: remove commented debug prints/functions
-//CLEAN: newExplainer() yo
+//CLEAN: newExplainer() so ugly yo
 //CLEAN: get rid of this todo list and add introductory comments
 
 //To debug, change "isTwoPlaying" to "isOnePlaying" and allow explainer to guess in "OnClientSayCommand_Post"
@@ -48,6 +45,10 @@ public OnPluginStart()
 
   //Initialize
   numberOfWords = countWords();
+  if (numberOfWords == 0)
+  {
+    return; //Don't initialize if there was an error with the word list
+  }
   arrayWordList = CreateArray(128);
   iExplainer = 0;
   wordNumber = -1;
@@ -79,7 +80,7 @@ public OnClientDisconnect_Post(client)
   new bool:wasGameGoing = isGameGoing();
   isPlaying[client] = false;
   // Stop the game if there aren't enough players left
-  if (wasGameGoing!=isGameGoing())
+  if (wasGameGoing!=isGameGoing()) //Change to (wasGoing && !isGoing)?
   {
     stopGame();
   }
@@ -312,11 +313,23 @@ countWords()
   BuildPath(Path_SM,path,PLATFORM_MAX_PATH,WORD_LIST_PATH);
   new Handle:fileHandle=OpenFile(path,"r");
   new iWords = 0;
+  //For OpenFile(path,type): "Return: A Handle to the file, INVALID_HANDLE on open error."
+  //Deal with open error here
+  if (fileHandle == INVALID_HANDLE) //Dealing with open error
+  {
+    LogError("Word Guess: Error - file 'gamedata/word_list.txt' could not open (does it exist?)");
+    return 0;
+  }
+  //Count the number of words (lines) in the file
   while(!IsEndOfFile(fileHandle)&&ReadFileLine(fileHandle,line,sizeof(line)))
   {
     iWords++;
   }
   CloseHandle(fileHandle);
+  if (iWords == 0) //Dealing with empty word lists
+  {
+    LogError("Word Guess: Warning - file 'gamedata/word_list.txt' is empty");
+  }
   return iWords;
 }
 
