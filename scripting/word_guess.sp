@@ -1,13 +1,14 @@
-//todo list
-//FEATURE: some sort of scoring system
-//FEATURE: give everyone a turn at being the explainer (whoever has the highest score or lowest number of turns being the explainer?)
+//todo list:
+//FEATURE: some sort of scoring system. maybe.
 
-//CLEAN: confusion caused by name 'isGameGoing' (rename to isEnoughPlayers or create a separate function?)
+//FIX: Something weird happens when someone leaves to end the game?
+
+//CLEAN: confusion caused by name 'isGameGoing' (rename to isEnoughPlayers or something?)
 //CLEAN: remove commented debug prints/functions
-//CLEAN: newExplainer() so ugly yo
 //CLEAN: get rid of this todo list and add introductory comments
 
-//To debug, change "isTwoPlaying" to "isOnePlaying" and allow explainer to guess in "OnClientSayCommand_Post"
+//I realize there are probably a few race conditions, but this is a damn minigame plugin lol
+//To debug, swap commenting of indicated lines in 'isGameGoing()' and 'OnClientSayCommand_Post'
 
 #include <sourcemod>
 #include <colors>
@@ -21,6 +22,7 @@ new String:currentWord[128];
 new wordNumber;
 new numberOfWords;
 new bool:isPlaying[MAXPLAYERS + 1];
+new turnsHad[MAXPLAYERS + 1];
 new iExplainer;
 new secondsLeft;
 new Handle:arrayWordList;
@@ -31,16 +33,17 @@ public Plugin:myinfo =
   name = "Word Guess",
   author = "",
   description = "An 'Articulate'-like minigame",
-  version = "1.7",
+  version = "1.8",
   url = ""
 };
 
 public OnPluginStart()
 {
-  //Set everyone to not playing
+  //Set everyone to not playing and number of turns had to zero
   for (new player = 0; player <= MAXPLAYERS; player++)
   {
     isPlaying[player] = false;
+    turnsHad[player] = 0;
   }
 
   //Initialize
@@ -73,14 +76,16 @@ public OnPluginStart()
 public OnClientAuthorized(client, const String:auth[])
 {
   isPlaying[client] = false;
+  turnsHad[client] = 0;
 }
 
 public OnClientDisconnect_Post(client)
 {
   new bool:wasGameGoing = isGameGoing();
   isPlaying[client] = false;
-  // Stop the game if there aren't enough players left
-  if (wasGameGoing!=isGameGoing()) //Change to (wasGoing && !isGoing)?
+  turnsHad[client] = 0;
+  //Stop the game if there were enough players, but now longer aren't since someone left
+  if (wasGameGoing && !isGameGoing())
   {
     stopGame();
   }
@@ -97,13 +102,12 @@ public OnMapEnd()
 //Notice when a playing player gueses the word
 public OnClientSayCommand_Post(client, const String:command[], const String:sArgs[])
 {
-  if (isPlaying[client] && client != iExplainer) //Remove "&& client != iExplainer" to allow explainer to guess for debugging
+  if (isPlaying[client] && client != iExplainer) //Switch commenting with the line below to allow explainer to guess for debugging
+  //if (isPlaying[client])
   {
-    new String:guessedWord[128];
-    Format(guessedWord, sizeof(guessedWord), sArgs[1]);
-    //PrintToChat(client, "You said: %s, it is %i characters long", guessedWord, strlen(guessedWord));
-    //PrintToChat(client, "The word: %s, it is %i characters long", currentWord, strlen(currentWord));
-    if(StrEqual(currentWord,guessedWord, false)) //If they've said the current word to be guessed
+    new String:guessedWord[sizeof(currentWord)];
+    Format(guessedWord, sizeof(guessedWord), sArgs[0]);
+    if(isGuessCorrect(guessedWord)) //If they've said the current word to be guessed
     {
       decl String:winnerName[128];
       decl String:message[256];
@@ -216,7 +220,7 @@ public Action:Cmd_Who(client, args)
   }
   else
   {
-    PrintToChat(client, "Game is not currently running")
+    PrintToChat(client, "Game is not currently running");
   }
   return Plugin_Handled;
 }
@@ -244,7 +248,7 @@ public Action:Cmd_Pass(client, args)
   }
   else
   {
-    PrintToChat(client, "Game is not currently running")
+    PrintToChat(client, "Game is not currently running");
   }
   return Plugin_Handled;
 }
@@ -384,7 +388,9 @@ ShuffleWordList()
 /////////////////
 
 //Randomly choose a new explainer. Someone other than the current explainer
-newExplainer()
+//No longer used
+/*
+newExplainerOld()
 {
   new playingClients = 0;
   for (new client = 0; client <= MAXPLAYERS; client++) //Count the number of playing clients excluding the current explainer
@@ -394,7 +400,7 @@ newExplainer()
       playingClients++;
     }
   }
-  if (playingClients == 0)
+  if (playingClients == 0) //If there is only 1 player (as during debugging)...
   {
     playingClients = 1;
     new randomClientNumber = GetRandomInt(1,playingClients); //Choose a random number up to the amount that are playing
@@ -406,25 +412,56 @@ newExplainer()
         if (randomClientNumber==0)
         {
           iExplainer = client; //Assign the player as the new explainer
+          turnsHad[iExplainer]++; //Count the turn they are having
         }
       }
     }
   }
   else //Only necessary if there is only one player and they are playing (when debugging)
   {
-    new randomClientNumber = GetRandomInt(1,playingClients);
-    for (new client = 0; client <= MAXPLAYERS; client++)
+    new randomClientNumber = GetRandomInt(1,playingClients); //Choose a random number up to the amount that are playing
+    for (new client = 0; client <= MAXPLAYERS; client++) //Go through each player until you find the randomly chosen one
     {
     	if (isPlaying[client] && client != iExplainer)
       {
         randomClientNumber--;
         if (randomClientNumber==0)
         {
-        	iExplainer = client;
+        	iExplainer = client; //Assign the player as the new explainer
+          turnsHad[iExplainer]++; //Count the turn they are having
         }
       }
     }
   }
+  decl String:message[256];
+  decl String:explainerName[128];
+  GetClientName(iExplainer, explainerName, sizeof(explainerName));
+  Format(message, sizeof(message),"{lightgreen}%s {default}is the new explainer", explainerName);
+  PrintToPlayingClients(message);
+}
+*/
+
+//Choose a new explainer who has had the least turns
+newExplainer()
+{
+  new minTurns = 999; //Find a better way to do this
+  new iNewExplainer = iExplainer;
+   //Go through each player and find who has had the least number of turns
+  for (new client = 0; client <= MAXPLAYERS; client++)
+  {
+    if (isPlaying[client] && client != iExplainer) //If you don't want to choose the same one
+    {
+      if (turnsHad[client] < minTurns) //Change to less than or equal to?
+      {
+        minTurns = turnsHad[client];
+        iNewExplainer = client;
+      }
+    }
+  }
+
+  iExplainer = iNewExplainer; //Assign the player as the new explainer
+  turnsHad[iExplainer]++; //Count the turn they are having
+
   decl String:message[256];
   decl String:explainerName[128];
   GetClientName(iExplainer, explainerName, sizeof(explainerName));
@@ -470,8 +507,8 @@ bool:isGameGoing()
       }
     }
   }
+  return isTwoPlaying; //Switch commenting with the line below to allow solo play for debugging
   //return isOnePlaying;
-  return isTwoPlaying;
 }
 
 //Handles the actions depending at what time the timer is at
@@ -546,4 +583,22 @@ PrintToPlayingClients(String:message[256])
       CPrintToChat(client, message);
     }
   }
+}
+
+//Check if a guess is correct, taking into account dash, underscore and whitespace characters
+bool:isGuessCorrect(String:guess[128])
+{
+  new String:guessedWord[sizeof(currentWord)];
+  Format(guessedWord, sizeof(guessedWord), guess);
+  ReplaceString(guessedWord, sizeof(guessedWord), "-", "", false); //Remove dashes characters
+  ReplaceString(guessedWord, sizeof(guessedWord), "_", "", false); //Remove underscore characters
+  ReplaceString(guessedWord, sizeof(guessedWord), " ", "", false); //Remove whitespace characters
+
+  new String:currentWordCleaned[sizeof(currentWord)];
+  Format(currentWordCleaned, sizeof(currentWordCleaned), currentWord);
+  ReplaceString(currentWordCleaned, sizeof(currentWordCleaned), "-", "", false); //Remove dashes characters
+  ReplaceString(currentWordCleaned, sizeof(currentWordCleaned), "_", "", false); //Remove underscore characters
+  ReplaceString(currentWordCleaned, sizeof(currentWordCleaned), " ", "", false); //Remove whitespace characters
+
+  return (StrEqual(currentWordCleaned,guessedWord, false));
 }
