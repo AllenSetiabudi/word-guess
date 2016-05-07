@@ -7,6 +7,7 @@ Basically this is a word-guessing party game you can play while waiting for peop
 
 #### Useful commands:
 - !playguess - Start/stop playing Word Guess
+- !stopguess - Stop/start playing Word Guess
 - !guesshelp - Give instructions on how to play
 - !guesswho - Show a list of players and who has the role of explaining
 - !word - As the explainer, reminds you what your current word is

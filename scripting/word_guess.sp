@@ -1,8 +1,10 @@
 //todo list:
 //FEATURE: some sort of scoring system. maybe.
+//FEATURE: change start/stopGuess from toggles into seperate commands
 
 //FIX: Something weird happens when someone leaves to end the game?
 
+//CLEAN: rename the !pass command in case of conflicts with other plugins?
 //CLEAN: confusion caused by name 'isGameGoing' (rename to isEnoughPlayers or something?)
 //CLEAN: remove commented debug prints/functions
 //CLEAN: get rid of this todo list and add introductory comments
@@ -33,7 +35,7 @@ public Plugin:myinfo =
   name = "Word Guess",
   author = "",
   description = "An 'Articulate'-like minigame",
-  version = "1.8",
+  version = "1.8.1",
   url = ""
 };
 
@@ -64,6 +66,7 @@ public OnPluginStart()
   RegConsoleCmd("sm_word", Cmd_Word, "Show the current word if you are the explainer");
   RegConsoleCmd("sm_pass", Cmd_Pass, "Pass if you do not want to be the explainer");
   RegConsoleCmd("sm_playguess", Cmd_Playing, "Toggle if you are playing Word Guess");
+  RegConsoleCmd("sm_stopguess", Cmd_Playing, "Toggle if you are playing Word Guess");
   RegConsoleCmd("sm_guesshelp", Cmd_Help, "Print game instructions");
   RegConsoleCmd("sm_guesswho", Cmd_Who, "Show who are playing and who is the explainer");
 }
