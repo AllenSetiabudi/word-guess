@@ -92,6 +92,10 @@ public OnClientDisconnect_Post(client)
   {
     stopGame();
   }
+  else if (isGameGoing() && client == iExplainer)
+  {
+    explainerLeft();
+  }
 }
 
 public OnMapEnd()
@@ -134,13 +138,13 @@ public Action:Cmd_Playing(client, args)
   //Start/stop the game if there are now enough/not enough players
   if (wasGameGoing!=isGameGoing())
   {
-    if (!isGameGoing())
+    if (isGameGoing())
     {
-      stopGame();
+      startGame();
     }
     else
     {
-      startGame();
+      stopGame();
     }
   }
   decl String:message[256];
@@ -169,6 +173,10 @@ public Action:Cmd_Playing(client, args)
   {
     Format(message, sizeof(message),"You are no longer playing Word Guess");
     PrintToChat(client, message);
+    if (isGameGoing() && client == iExplainer)
+    {
+      explainerLeft();
+    }
   }
   return Plugin_Handled;
 }
@@ -540,6 +548,20 @@ public Action:timeNextSecond(Handle:timer)
     secondsLeft--; //Decrement the timer
     gameTimer = CreateTimer(1.0, timeNextSecond); //Continue to tick away
   }
+}
+
+//What to do if the explainer left (and the game is still going)
+explainerLeft()
+{
+  KillTimer(gameTimer);
+
+  decl String:message[256];
+  Format(message, sizeof(message), "{lightgreen}The explainer has stopped playing");
+  PrintToPlayingClients(message);
+  Format(message, sizeof(message),"The word was: {lightgreen}%s", currentWord);
+  PrintToPlayingClients(message);
+
+  startRound();
 }
 
 startRound()
