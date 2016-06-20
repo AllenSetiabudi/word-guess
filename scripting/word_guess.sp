@@ -20,6 +20,7 @@
 #define WORD_LIST_PATH "gamedata/word_list.txt"
 
 //Global vars
+new bool:isDebugMode;
 new String:currentWord[128];
 new wordNumber;
 new numberOfWords;
@@ -35,7 +36,7 @@ public Plugin:myinfo =
   name = "Word Guess",
   author = "",
   description = "An 'Articulate'-like minigame",
-  version = "1.8.1",
+  version = "1.8.2",
   url = ""
 };
 
@@ -49,6 +50,7 @@ public OnPluginStart()
   }
 
   //Initialize
+  isDebugMode = false;
   numberOfWords = countWords();
   if (numberOfWords == 0)
   {
@@ -69,6 +71,7 @@ public OnPluginStart()
   RegConsoleCmd("sm_stopguess", Cmd_Playing, "Toggle if you are playing Word Guess");
   RegConsoleCmd("sm_guesshelp", Cmd_Help, "Print game instructions");
   RegConsoleCmd("sm_guesswho", Cmd_Who, "Show who are playing and who is the explainer");
+  RegConsoleCmd("sm_guessdebug", Cmd_Debug, "Toggle a mode used for debugging");
 }
 
 
@@ -109,11 +112,16 @@ public OnMapEnd()
 //Notice when a playing player gueses the word
 public OnClientSayCommand_Post(client, const String:command[], const String:sArgs[])
 {
-  if (isPlaying[client] && client != iExplainer) //Switch commenting with the line below to allow explainer to guess for debugging
+  if ((isPlaying[client] && client != iExplainer)||(isPlaying[client] && isDebugMode)) //Switch commenting with the line below to allow explainer to guess for debugging
   //if (isPlaying[client])
   {
     new String:guessedWord[sizeof(currentWord)];
     Format(guessedWord, sizeof(guessedWord), sArgs[0]);
+    if (isDebugMode)
+    {
+      PrintToChat(client, "You said: %s, it is %i characters long", guessedWord, strlen(guessedWord));
+      PrintToChat(client, "The word: %s, it is %i characters long", currentWord, strlen(currentWord));
+    }
     if(isGuessCorrect(guessedWord)) //If they've said the current word to be guessed
     {
       decl String:winnerName[128];
@@ -313,6 +321,33 @@ public Action:Cmd_Word(client, args)
   else
   {
     PrintToChat(client,"Game is not currently underway");
+  }
+  return Plugin_Handled;
+}
+
+public Action:Cmd_Debug(client, args)
+{
+  new bool:wasGameGoing = isGameGoing();
+  if (isDebugMode)
+  {
+    isDebugMode = false;
+    PrintToChat(client, "Debug mode is now off");
+  }
+  else
+  {
+    isDebugMode = true;
+    PrintToChat(client, "Debug mode is now on");
+  }
+  if (wasGameGoing!=isGameGoing())
+  {
+    if (isGameGoing())
+    {
+      startGame();
+    }
+    else
+    {
+      stopGame();
+    }
   }
   return Plugin_Handled;
 }
@@ -518,7 +553,15 @@ bool:isGameGoing()
       }
     }
   }
-  return isTwoPlaying; //Switch commenting with the line below to allow solo play for debugging
+  if (isDebugMode)
+  {
+    return isOnePlaying;
+  }
+  else
+  {
+    return isTwoPlaying;
+  }
+  //return isTwoPlaying; //Switch commenting with the line below to allow solo play for debugging
   //return isOnePlaying;
 }
 
