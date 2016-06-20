@@ -661,12 +661,16 @@ bool:isGuessCorrect(String:guess[128])
   ReplaceString(guessedWord, sizeof(guessedWord), "-", "", false); //Remove dashes characters
   ReplaceString(guessedWord, sizeof(guessedWord), "_", "", false); //Remove underscore characters
   ReplaceString(guessedWord, sizeof(guessedWord), " ", "", false); //Remove whitespace characters
+  ReplaceString(guessedWord, sizeof(guessedWord), "\'", "", false); //Remove single quotation marks
+  ReplaceString(guessedWord, sizeof(guessedWord), "\"", "", false); //Remove double quotation marks
 
   new String:currentWordCleaned[sizeof(currentWord)];
   Format(currentWordCleaned, sizeof(currentWordCleaned), currentWord);
   ReplaceString(currentWordCleaned, sizeof(currentWordCleaned), "-", "", false); //Remove dashes characters
   ReplaceString(currentWordCleaned, sizeof(currentWordCleaned), "_", "", false); //Remove underscore characters
   ReplaceString(currentWordCleaned, sizeof(currentWordCleaned), " ", "", false); //Remove whitespace characters
+  ReplaceString(currentWordCleaned, sizeof(currentWordCleaned), "\'", "", false); //Remove single quotation marks
+  ReplaceString(currentWordCleaned, sizeof(currentWordCleaned), "\"", "", false); //Remove double quotation marks
 
   return (StrEqual(currentWordCleaned,guessedWord, false));
 }
