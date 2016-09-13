@@ -36,7 +36,7 @@ public Plugin:myinfo =
   name = "Word Guess",
   author = "",
   description = "An 'Articulate'-like minigame",
-  version = "1.8.2",
+  version = "1.8.3",
   url = ""
 };
 
@@ -156,10 +156,16 @@ public Action:Cmd_Playing(client, args)
     }
   }
   decl String:message[256];
+  decl String:clientName[128];
   if (isPlaying[client])
   {
     Format(message, sizeof(message),"You are now playing Word Guess. Type {green}!guesshelp {default}for instructions");
     CPrintToChat(client, message);
+
+    GetClientName(client, clientName, sizeof(clientName));
+    Format(message, sizeof(message),"{lightgreen}%s {default}is now playing Word Guess.", clientName);
+    PrintToPlayingClients(message);
+
     if (wasGameGoing == isGameGoing()) //If the player didn't cause a start or stop of the game
     {
       if (wasGameGoing)
@@ -181,6 +187,11 @@ public Action:Cmd_Playing(client, args)
   {
     Format(message, sizeof(message),"You are no longer playing Word Guess");
     PrintToChat(client, message);
+
+    GetClientName(client, clientName, sizeof(clientName));
+    Format(message, sizeof(message),"{lightgreen}%s {default}is no longer playing Word Guess.", clientName);
+    PrintToPlayingClients(message);
+
     if (isGameGoing() && client == iExplainer)
     {
       explainerLeft();
